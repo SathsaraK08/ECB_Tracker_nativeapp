@@ -10,33 +10,33 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 
 private val DarkColorScheme = darkColorScheme(
-    background = DarkBackground,
-    surface = DarkSurface,
-    surfaceVariant = DarkSurfaceVariant,
-    outline = DarkOutline,
-    primary = Cyan,
-    secondary = Green,
-    tertiary = Purple,
-    error = Red,
-    onPrimary = OnPrimary,
-    onBackground = DarkOnBackground,
-    onSurface = DarkOnSurface,
-    onSurfaceVariant = DarkOnSurfaceVariant,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    surfaceVariant = SurfaceVariantDark,
+    outline = BorderDark,
+    primary = CyanPrimary,
+    secondary = GreenSuccess,
+    tertiary = PurpleAccent,
+    error = RedDanger,
+    onPrimary = Color(0xFF07090F),
+    onBackground = TextPrimary,
+    onSurface = TextPrimary,
+    onSurfaceVariant = TextSub,
 )
 
 private val LightColorScheme = lightColorScheme(
-    background = LightBackground,
-    surface = LightSurface,
-    surfaceVariant = LightSurfaceVariant,
-    outline = LightOutline,
-    primary = Cyan,
-    secondary = Green,
-    tertiary = Purple,
-    error = Red,
-    onPrimary = OnPrimary,
-    onBackground = LightOnBackground,
-    onSurface = LightOnSurface,
-    onSurfaceVariant = LightOnSurfaceVariant,
+    background = BackgroundLight,
+    surface = SurfaceLight,
+    surfaceVariant = SurfaceVariantLight,
+    outline = BorderLight,
+    primary = CyanPrimary,
+    secondary = GreenSuccess,
+    tertiary = PurpleAccent,
+    error = RedDanger,
+    onPrimary = Color(0xFF07090F),
+    onBackground = TextPrimaryLight,
+    onSurface = TextPrimaryLight,
+    onSurfaceVariant = TextSubLight,
 )
 
 val EcbShapes = Shapes(
@@ -54,7 +54,7 @@ fun EcbTrackerTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = EcbTypography,
+        typography = Typography,
         shapes = EcbShapes,
         content = content
     )

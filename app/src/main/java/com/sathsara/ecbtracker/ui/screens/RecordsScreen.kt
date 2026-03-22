@@ -49,7 +49,7 @@ fun RecordsScreen(
         Text(
             text = "Complete history of meter readings",
             fontSize = 14.sp,
-            color = Muted,
+            color = TextMuted,
             modifier = Modifier.padding(bottom = 20.dp)
         )
 
@@ -63,7 +63,7 @@ fun RecordsScreen(
                 onClick = { viewModel.setFilterMode(FilterMode.ALL) },
                 label = { Text("All", fontSize = 13.sp) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Cyan,
+                    selectedContainerColor = CyanPrimary,
                     selectedLabelColor = Color.Black
                 ),
                 shape = RoundedCornerShape(16.dp),
@@ -74,7 +74,7 @@ fun RecordsScreen(
                 onClick = { viewModel.setFilterMode(FilterMode.VERIFIED) },
                 label = { Text("Verified (Photo)", fontSize = 13.sp) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Cyan,
+                    selectedContainerColor = CyanPrimary,
                     selectedLabelColor = Color.Black
                 ),
                 shape = RoundedCornerShape(16.dp),
@@ -85,7 +85,7 @@ fun RecordsScreen(
                 onClick = { viewModel.setFilterMode(FilterMode.PENDING) },
                 label = { Text("Pending Auth", fontSize = 13.sp) },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Cyan,
+                    selectedContainerColor = CyanPrimary,
                     selectedLabelColor = Color.Black
                 ),
                 shape = RoundedCornerShape(16.dp),
@@ -101,7 +101,7 @@ fun RecordsScreen(
             }
         } else if (uiState.entries.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No records found.", color = Muted)
+                Text("No records found.", color = TextMuted)
             }
         } else {
             LazyColumn(
@@ -111,37 +111,10 @@ fun RecordsScreen(
                     items = uiState.entries,
                     key = { it.id ?: it.hashCode() }
                 ) { entry ->
-                    // Wrapping in SwipeToDismiss (simplified setup for M3)
-                    val dismissState = rememberDismissState(
-                        confirmValueChange = {
-                            if (it == DismissValue.DismissedToStart) {
-                                entry.id?.let { id -> viewModel.deleteEntry(id) }
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    )
-
-                    SwipeToDismiss(
-                        state = dismissState,
-                        background = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(bottom = 12.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(Red)
-                                    .padding(end = 20.dp),
-                                contentAlignment = Alignment.CenterEnd
-                            ) {
-                                Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        },
-                        dismissContent = {
-                            RecordItem(entry, uiState.ratePerUnit)
-                        },
-                        directions = setOf(DismissDirection.EndToStart)
+                    RecordItem(
+                        entry = entry,
+                        ratePerUnit = uiState.ratePerUnit,
+                        onDelete = { entry.id?.let { id -> viewModel.deleteEntry(id) } }
                     )
                 }
             }
@@ -150,7 +123,7 @@ fun RecordsScreen(
 }
 
 @Composable
-fun RecordItem(entry: Entry, ratePerUnit: Double) {
+fun RecordItem(entry: Entry, ratePerUnit: Double, onDelete: () -> Unit) {
     val estimatedCost = entry.used * ratePerUnit
     val isVerified = entry.imgUrl != null
 
@@ -161,6 +134,18 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
             .background(SurfaceDark, RoundedCornerShape(12.dp))
             .padding(16.dp)
     ) {
+        IconButton(
+            onClick = onDelete,
+            modifier = Modifier.align(Alignment.TopEnd).offset(x = 8.dp, y = (-8).dp)
+        ) {
+            Icon(
+                imageVector = androidx.compose.material.icons.Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = RedDanger.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
         Column {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -171,7 +156,7 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
                     Text(
                         text = "${entry.date} at ${entry.time}",
                         fontSize = 13.sp,
-                        color = Muted,
+                        color = TextMuted,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -179,11 +164,11 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
                 Box(
                     modifier = Modifier
                         .background(if (isVerified) GreenDim else AmberDim, RoundedCornerShape(12.dp))
-                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
                         text = if (isVerified) "Verified" else "Pending",
-                        color = if (isVerified) Green else Amber,
+                        color = if (isVerified) GreenSuccess else AmberWarning,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -194,7 +179,7 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
 
             Row(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Reading", fontSize = 11.sp, color = Muted)
+                    Text("Reading", fontSize = 11.sp, color = TextMuted)
                     Text(
                         text = entry.unit.toString(),
                         fontFamily = DMMonoFamily,
@@ -204,20 +189,20 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
                     )
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Usage", fontSize = 11.sp, color = Muted)
+                    Text("Usage", fontSize = 11.sp, color = TextMuted)
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(
                             text = "+${String.format("%.1f", entry.used)}",
                             fontFamily = DMMonoFamily,
                             fontWeight = FontWeight.Bold,
                             fontSize = 18.sp,
-                            color = Cyan
+                            color = CyanPrimary
                         )
-                        Text(" kWh", fontSize = 10.sp, color = Muted, modifier = Modifier.padding(bottom = 3.dp))
+                        Text(" kWh", fontSize = 10.sp, color = TextMuted, modifier = Modifier.padding(bottom = 3.dp))
                     }
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Est. Cost", fontSize = 11.sp, color = Muted)
+                    Text("Est. Cost", fontSize = 11.sp, color = TextMuted)
                     Text(
                         text = "LKR ${String.format("%,.0f", estimatedCost)}",
                         fontFamily = DMMonoFamily,
@@ -238,12 +223,12 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             entry.appliances.take(3).forEach { app ->
                                 Box(modifier = Modifier.background(Color(0xFF1E293B), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                                    Text(app, fontSize = 10.sp, color = Muted)
+                                    Text(app, fontSize = 10.sp, color = TextMuted)
                                 }
                             }
                             if (entry.appliances.size > 3) {
                                 Box(modifier = Modifier.background(Color(0xFF1E293B), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp)) {
-                                    Text("+${entry.appliances.size - 3}", fontSize = 10.sp, color = Muted)
+                                    Text("+${entry.appliances.size - 3}", fontSize = 10.sp, color = TextMuted)
                                 }
                             }
                         }
@@ -252,7 +237,7 @@ fun RecordItem(entry: Entry, ratePerUnit: Double) {
                     }
                     
                     if (!entry.note.isNullOrBlank()) {
-                        Text("📝 Note", fontSize = 11.sp, color = Muted)
+                        Text("📝 Note", fontSize = 11.sp, color = TextMuted)
                     }
                 }
             }

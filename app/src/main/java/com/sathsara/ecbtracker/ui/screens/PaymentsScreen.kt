@@ -49,7 +49,7 @@ fun PaymentsScreen(
         Text(
             text = "Manage your CEB bills and history",
             fontSize = 14.sp,
-            color = Muted,
+            color = TextMuted,
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
@@ -84,7 +84,7 @@ fun PaymentsScreen(
                     ) {
                         Text(
                             text = "Due in 12 days", // hardcoded mock for UI
-                            color = Amber,
+                            color = AmberWarning,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -97,7 +97,7 @@ fun PaymentsScreen(
                     LoadingSkeleton(modifier = Modifier.width(150.dp).height(40.dp))
                 } else {
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text("LKR ", fontSize = 16.sp, color = Muted, modifier = Modifier.padding(bottom = 6.dp))
+                        Text("LKR ", fontSize = 16.sp, color = TextMuted, modifier = Modifier.padding(bottom = 6.dp))
                         Text(
                             text = String.format("%,.0f", uiState.currentBillAmount),
                             fontFamily = DMMonoFamily,
@@ -116,7 +116,7 @@ fun PaymentsScreen(
                     Text(
                         text = "Based on ${String.format("%.1f", uiState.lastUnits)} kWh usage. Acc: ${uiState.accountNumber}",
                         fontSize = 12.sp,
-                        color = Muted
+                        color = TextMuted
                     )
                 }
 
@@ -148,7 +148,7 @@ fun PaymentsScreen(
             }
         } else if (uiState.paymentHistory.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(top = 20.dp), contentAlignment = Alignment.Center) {
-                Text("No payment history yet.", color = Muted)
+                Text("No payment history yet.", color = TextMuted)
             }
         } else {
             LazyColumn(contentPadding = PaddingValues(bottom = 80.dp)) {
@@ -178,7 +178,7 @@ fun PaymentItem(payment: Payment) {
                     .background(if (payment.paid) GreenDim else AmberDim, RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(if (payment.paid) "✓" else "!", fontSize = 18.sp, color = if (payment.paid) Green else Amber)
+                Text(if (payment.paid) "✓" else "!", fontSize = 18.sp, color = if (payment.paid) GreenSuccess else AmberWarning)
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
@@ -192,7 +192,7 @@ fun PaymentItem(payment: Payment) {
                 Text(
                     text = if (payment.paid) "Paid via ${payment.bank ?: "Card"}" else "Payment Pending",
                     fontSize = 12.sp,
-                    color = Muted
+                    color = TextMuted
                 )
             }
         }

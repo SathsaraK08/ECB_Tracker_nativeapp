@@ -62,7 +62,7 @@ fun LogScreen(
         Text(
             text = "Enter current meter reading",
             fontSize = 14.sp,
-            color = Muted,
+            color = TextMuted,
             modifier = Modifier.padding(bottom = 24.dp)
         )
 
@@ -74,7 +74,7 @@ fun LogScreen(
                 .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("Previous Reading:", color = Muted, fontSize = 14.sp)
+            Text("Previous Reading:", color = TextMuted, fontSize = 14.sp)
             Text(
                 text = "${uiState.previousUnit}",
                 fontFamily = DMMonoFamily,
@@ -97,7 +97,7 @@ fun LogScreen(
                 DigitBox(digit = inputStr[i].toString(), isDecimal = false)
             }
             
-            Text(".", fontSize = 36.sp, color = Muted, modifier = Modifier.padding(horizontal = 4.dp))
+            Text(".", fontSize = 36.sp, color = TextMuted, modifier = Modifier.padding(horizontal = 4.dp))
             
             // Decimal parts (2 digits)
             for (i in 5..6) {
@@ -110,7 +110,7 @@ fun LogScreen(
         // ML Kit Camera Scan Button
         Button(
             onClick = { /* TODO: Launch ML Kit Camera Scanner */ },
-            colors = ButtonDefaults.buttonColors(containerColor = CyanDim, contentColor = Cyan),
+            colors = ButtonDefaults.buttonColors(containerColor = CyanDim, contentColor = CyanPrimary),
             modifier = Modifier.fillMaxWidth().height(48.dp),
             shape = RoundedCornerShape(8.dp)
         ) {
@@ -149,7 +149,7 @@ fun LogScreen(
                         )
                         .border(
                             1.dp,
-                            if (isSelected) Cyan else Color.Transparent,
+                            if (isSelected) CyanPrimary else Color.Transparent,
                             RoundedCornerShape(8.dp)
                         )
                         .clickable { viewModel.toggleAppliance(appliance) }
@@ -160,7 +160,7 @@ fun LogScreen(
                         text = appliance,
                         fontSize = 11.sp,
                         textAlign = TextAlign.Center,
-                        color = if (isSelected) Cyan else Muted
+                        color = if (isSelected) CyanPrimary else TextMuted
                     )
                 }
             }
@@ -180,14 +180,14 @@ fun LogScreen(
         OutlinedTextField(
             value = uiState.note,
             onValueChange = { viewModel.updateNote(it) },
-            placeholder = { Text("Add any specifics...", color = Muted) },
+            placeholder = { Text("Add any specifics...", color = TextMuted) },
             modifier = Modifier.fillMaxWidth().height(100.dp),
             shape = RoundedCornerShape(8.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                focusedBorderColor = Cyan,
+                focusedBorderColor = CyanPrimary,
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
             )
         )
@@ -224,8 +224,8 @@ fun DigitBox(digit: String, isDecimal: Boolean) {
             .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)),
         contentAlignment = Alignment.Center
     ) {
-        // Red color for decimals matching standard analog meters
-        val textColor = if (isDecimal) Red else MaterialTheme.colorScheme.onBackground
+        // RedDanger color for decimals matching standard analog meters
+        val textColor = if (isDecimal) RedDanger else MaterialTheme.colorScheme.onBackground
         
         Text(
             text = digit,
