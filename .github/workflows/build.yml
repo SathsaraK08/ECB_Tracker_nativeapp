@@ -41,14 +41,16 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          ./gradlew testDebugUnitTest --no-daemon --stacktrace | tee gradle-test.log
+          ./gradlew testDebugUnitTest --no-daemon --stacktrace 2>&1 | tee gradle-test.log
 
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ECBTracker-test-reports
-          path: app/build/reports/tests/testDebugUnitTest
+          path: |
+            app/build/reports/tests/testDebugUnitTest
+            app/build/test-results/testDebugUnitTest
           retention-days: 30
 
       - name: Upload Gradle test log
