@@ -1,5 +1,7 @@
 package com.sathsara.ecbtracker.ui.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -7,10 +9,15 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -19,92 +26,143 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.sathsara.ecbtracker.R
-import com.sathsara.ecbtracker.ui.screens.ForecastScreen
+import com.sathsara.ecbtracker.logic.AppDestination
+import com.sathsara.ecbtracker.ui.components.BrandHeader
 import com.sathsara.ecbtracker.ui.screens.HomeScreen
 import com.sathsara.ecbtracker.ui.screens.LogScreen
 import com.sathsara.ecbtracker.ui.screens.LoginScreen
-import com.sathsara.ecbtracker.ui.screens.PaymentsScreen
+import com.sathsara.ecbtracker.ui.screens.OnboardingScreen
 import com.sathsara.ecbtracker.ui.screens.RecordsScreen
-import com.sathsara.ecbtracker.ui.screens.ReportsScreen
 import com.sathsara.ecbtracker.ui.screens.SettingsScreen
-import com.sathsara.ecbtracker.ui.theme.Cyan
+import com.sathsara.ecbtracker.ui.theme.CyanPrimary
 import com.sathsara.ecbtracker.ui.theme.Muted
+import com.sathsara.ecbtracker.ui.viewmodel.AppStateViewModel
+
+private data class BottomNavItem(
+    val screen: Screen,
+    val iconRes: Int,
+    val label: String
+)
 
 @Composable
 fun EcbNavHost(
-    startDestination: String,
     navController: NavHostController = rememberNavController()
 ) {
-    NavHost(navController = navController, startDestination = startDestination) {
+    NavHost(navController = navController, startDestination = Screen.Gate.route) {
+        composable(Screen.Gate.route) {
+            AppGateRoute(navController = navController)
+        }
+
         composable(Screen.Login.route) {
             LoginScreen(
-                onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Login.route) { inclusive = true }
+                onAuthSuccess = {
+                    navController.navigate(Screen.Gate.route) {
+                        popUpTo(Screen.Gate.route) { inclusive = true }
                     }
                 }
             )
         }
-        
-        // The main content area with Bottom Nav is wrapped in a composable 
-        // that handles its own internal navigation for the 7 tabs.
-        composable(Screen.Home.route) {
-            MainScreenWithBottomNav {
-                navController.navigate(Screen.Login.route) {
-                    popUpTo(0) // Clear everything on logout
+
+        composable(Screen.Onboarding.route) {
+            OnboardingScreen(
+                onComplete = {
+                    navController.navigate(Screen.Main.route) {
+                        popUpTo(Screen.Gate.route) { inclusive = true }
+                    }
                 }
-            }
+            )
+        }
+
+        composable(Screen.Main.route) {
+            MainScreenScaffold(
+                onLogout = {
+                    navController.navigate(Screen.Gate.route) {
+                        popUpTo(Screen.Main.route) { inclusive = true }
+                    }
+                }
+            )
         }
     }
 }
 
 @Composable
-fun MainScreenWithBottomNav(onLogout: () -> Unit) {
-    val bottomNavController = rememberNavController()
-    
+private fun AppGateRoute(
+    navController: NavHostController,
+    viewModel: AppStateViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(uiState.isLoading, uiState.destination) {
+        if (!uiState.isLoading) {
+            val target = when (uiState.destination) {
+                AppDestination.LOGIN -> Screen.Login.route
+                AppDestination.ONBOARDING -> Screen.Onboarding.route
+                AppDestination.MAIN -> Screen.Main.route
+            }
+
+            navController.navigate(target) {
+                popUpTo(Screen.Gate.route) { inclusive = true }
+            }
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        BrandHeader(
+            title = "ECB Tracker",
+            subtitle = "Preparing your workspace"
+        )
+    }
+}
+
+@Composable
+private fun MainScreenScaffold(
+    onLogout: () -> Unit
+) {
+    val navController = rememberNavController()
     val navItems = listOf(
-        Pair(Screen.Home, R.drawable.ic_home),
-        Pair(Screen.Log, R.drawable.ic_add),
-        Pair(Screen.Records, R.drawable.ic_list),
-        Pair(Screen.Payments, R.drawable.ic_payment),
-        Pair(Screen.Reports, R.drawable.ic_report),
-        Pair(Screen.Forecast, R.drawable.ic_forecast),
-        Pair(Screen.Settings, R.drawable.ic_settings)
+        BottomNavItem(Screen.Home, R.drawable.ic_home, "Home"),
+        BottomNavItem(Screen.Log, R.drawable.ic_add, "Log"),
+        BottomNavItem(Screen.History, R.drawable.ic_list, "History"),
+        BottomNavItem(Screen.Settings, R.drawable.ic_settings, "Settings")
     )
 
     Scaffold(
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                contentColor = Muted
+                containerColor = MaterialTheme.colorScheme.surface
             ) {
-                val navBackStackEntry by bottomNavController.currentBackStackEntryAsState()
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
                 val currentDestination = navBackStackEntry?.destination
 
-                navItems.forEach { (screen, iconRes) ->
-                    val selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
-                    
+                navItems.forEach { item ->
+                    val selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
                     NavigationBarItem(
-                        icon = {
-                            Icon(
-                                painter = painterResource(id = iconRes),
-                                contentDescription = screen.route
-                            )
-                        },
                         selected = selected,
                         onClick = {
-                            bottomNavController.navigate(screen.route) {
-                                popUpTo(bottomNavController.graph.findStartDestination().id) {
+                            navController.navigate(item.screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
                                 restoreState = true
                             }
                         },
+                        icon = {
+                            Icon(
+                                painter = painterResource(id = item.iconRes),
+                                contentDescription = item.label
+                            )
+                        },
+                        label = { Text(item.label) },
                         colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = Cyan,
+                            selectedIconColor = CyanPrimary,
+                            selectedTextColor = CyanPrimary,
                             unselectedIconColor = Muted,
-                            indicatorColor = MaterialTheme.colorScheme.surface // Hide pill bg matching mockup
+                            unselectedTextColor = Muted,
+                            indicatorColor = MaterialTheme.colorScheme.surfaceVariant
                         )
                     )
                 }
@@ -112,17 +170,24 @@ fun MainScreenWithBottomNav(onLogout: () -> Unit) {
         }
     ) { padding ->
         NavHost(
-            navController = bottomNavController,
+            navController = navController,
             startDestination = Screen.Home.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable(Screen.Home.route) { HomeScreen(navController = bottomNavController) }
-            composable(Screen.Log.route) { LogScreen(navController = bottomNavController) }
-            composable(Screen.Records.route) { RecordsScreen() }
-            composable(Screen.Payments.route) { PaymentsScreen() }
-            composable(Screen.Reports.route) { ReportsScreen() }
-            composable(Screen.Forecast.route) { ForecastScreen() }
-            composable(Screen.Settings.route) { SettingsScreen(onLogout = onLogout) }
+            composable(Screen.Home.route) {
+                HomeScreen(onLogReading = { navController.navigate(Screen.Log.route) })
+            }
+            composable(Screen.Log.route) {
+                LogScreen(onSaved = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+                })
+            }
+            composable(Screen.History.route) {
+                RecordsScreen(onLogReading = { navController.navigate(Screen.Log.route) })
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(onLogout = onLogout)
+            }
         }
     }
 }

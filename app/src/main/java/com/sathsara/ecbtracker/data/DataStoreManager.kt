@@ -5,7 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.datastore.preferences.core.stringPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -25,6 +27,10 @@ class DataStoreManager @Inject constructor(
         val WEEKLY_DIGEST = booleanPreferencesKey("weekly_digest")
         val MONTHLY_EMAIL_REPORT = booleanPreferencesKey("monthly_email_report")
         val WEEKLY_SUMMARY = booleanPreferencesKey("weekly_summary")
+        val CURRENCY_CODE = stringPreferencesKey("currency_code")
+        val GEMINI_API_KEY = stringPreferencesKey("gemini_api_key")
+        val REMINDER_HOUR = intPreferencesKey("reminder_hour")
+        val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
     }
 
     val isDarkMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -84,6 +90,41 @@ class DataStoreManager @Inject constructor(
     suspend fun setWeeklySummary(enabled: Boolean) {
         context.dataStore.edit { prefs ->
             prefs[WEEKLY_SUMMARY] = enabled
+        }
+    }
+
+    val currencyCode: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[CURRENCY_CODE] ?: "LKR"
+    }
+
+    suspend fun setCurrencyCode(currencyCode: String) {
+        context.dataStore.edit { prefs ->
+            prefs[CURRENCY_CODE] = currencyCode.ifBlank { "LKR" }
+        }
+    }
+
+    val geminiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[GEMINI_API_KEY].orEmpty()
+    }
+
+    suspend fun setGeminiApiKey(apiKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs[GEMINI_API_KEY] = apiKey.trim()
+        }
+    }
+
+    val reminderHour: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[REMINDER_HOUR] ?: 20
+    }
+
+    val reminderMinute: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[REMINDER_MINUTE] ?: 0
+    }
+
+    suspend fun setReminderTime(hour: Int, minute: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[REMINDER_HOUR] = hour.coerceIn(0, 23)
+            prefs[REMINDER_MINUTE] = minute.coerceIn(0, 59)
         }
     }
 }

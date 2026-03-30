@@ -4,9 +4,12 @@ import android.content.Context
 import com.sathsara.ecbtracker.data.DataStoreManager
 import com.sathsara.ecbtracker.data.SupabaseClientProvider
 import com.sathsara.ecbtracker.data.repository.AuthRepository
+import com.sathsara.ecbtracker.data.repository.AuthRepositoryContract
 import com.sathsara.ecbtracker.data.repository.EntryRepository
+import com.sathsara.ecbtracker.data.repository.EntryRepositoryContract
 import com.sathsara.ecbtracker.data.repository.PaymentRepository
 import com.sathsara.ecbtracker.data.repository.SettingsRepository
+import com.sathsara.ecbtracker.data.repository.SettingsRepositoryContract
 import com.sathsara.ecbtracker.data.service.ExportManager
 import com.sathsara.ecbtracker.data.service.GeminiService
 import dagger.Module
@@ -41,8 +44,20 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideAuthRepositoryContract(repository: AuthRepository): AuthRepositoryContract {
+        return repository
+    }
+
+    @Provides
+    @Singleton
     fun provideEntryRepository(client: SupabaseClient): EntryRepository {
         return EntryRepository(client)
+    }
+
+    @Provides
+    @Singleton
+    fun provideEntryRepositoryContract(repository: EntryRepository): EntryRepositoryContract {
+        return repository
     }
 
     @Provides
@@ -55,6 +70,12 @@ object AppModule {
     @Singleton
     fun provideSettingsRepository(client: SupabaseClient): SettingsRepository {
         return SettingsRepository(client)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepositoryContract(repository: SettingsRepository): SettingsRepositoryContract {
+        return repository
     }
 
     @Provides

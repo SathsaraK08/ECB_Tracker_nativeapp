@@ -13,11 +13,11 @@ import javax.inject.Singleton
 @Singleton
 class SettingsRepository @Inject constructor(
     private val supabase: SupabaseClient
-) {
+) : SettingsRepositoryContract {
     private val settingsTable = supabase.postgrest["settings"]
     private val profilesTable = supabase.postgrest["profiles"]
 
-    suspend fun getSettings(): Result<UserSettings?> = withContext(Dispatchers.IO) {
+    override suspend fun getSettings(): Result<UserSettings?> = withContext(Dispatchers.IO) {
         Result.runCatching {
             val userId = supabase.auth.currentUserOrNull()?.id ?: return@runCatching null
             
@@ -27,7 +27,7 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun updateSettings(settings: UserSettings): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun updateSettings(settings: UserSettings): Result<Unit> = withContext(Dispatchers.IO) {
         Result.runCatching {
             val userId = supabase.auth.currentUserOrNull()?.id ?: throw Exception("Not logged in")
             val finalSettings = settings.copy(userId = userId)
@@ -37,7 +37,7 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    suspend fun getProfile(): Result<Profile?> = withContext(Dispatchers.IO) {
+    override suspend fun getProfile(): Result<Profile?> = withContext(Dispatchers.IO) {
         Result.runCatching {
             val userId = supabase.auth.currentUserOrNull()?.id ?: return@runCatching null
             
@@ -47,7 +47,7 @@ class SettingsRepository @Inject constructor(
         }
     }
     
-    suspend fun updateProfile(profile: Profile): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun updateProfile(profile: Profile): Result<Unit> = withContext(Dispatchers.IO) {
         Result.runCatching {
             val userId = supabase.auth.currentUserOrNull()?.id ?: throw Exception("Not logged in")
             val finalProfile = profile.copy(id = userId)

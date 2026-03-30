@@ -2,14 +2,18 @@ package com.sathsara.ecbtracker.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sathsara.ecbtracker.data.DataStoreManager
 import com.sathsara.ecbtracker.data.model.Entry
-import com.sathsara.ecbtracker.data.repository.EntryRepository
+import com.sathsara.ecbtracker.data.repository.EntryRepositoryContract
+import com.sathsara.ecbtracker.data.repository.SettingsRepositoryContract
+import com.sathsara.ecbtracker.logic.MeterReadingParser
+import com.sathsara.ecbtracker.logic.TrackerDateTimeParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.io.File
 import javax.inject.Inject
@@ -17,7 +21,12 @@ import javax.inject.Inject
 data class LogUiState(
     val isLoading: Boolean = false,
     val previousUnit: Double = 0.0,
-    val currentUnitInput: String = "0000000",
+    val dateInput: String = LocalDateTime.now().toLocalDate().toString(),
+    val timeInput: String = TrackerDateTimeParser.formatTime(LocalDateTime.now().hour, LocalDateTime.now().minute),
+    val currentUnitInput: String = "",
+    val usagePreview: Double? = null,
+    val ratePerUnit: Double = 32.0,
+    val currencyCode: String = "LKR",
     val selectedAppliances: Set<String> = emptySet(),
     val note: String = "",
     val photoFile: File? = null,
@@ -27,32 +36,81 @@ data class LogUiState(
 
 @HiltViewModel
 class LogViewModel @Inject constructor(
-    private val entryRepository: EntryRepository
+    private val entryRepository: EntryRepositoryContract,
+    private val settingsRepository: SettingsRepositoryContract,
+    private val dataStoreManager: DataStoreManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LogUiState())
     val uiState: StateFlow<LogUiState> = _uiState.asStateFlow()
 
     init {
-        loadPreviousReading()
+        loadTrackerPreferences()
+        refreshReadingContext()
     }
 
-        private fun loadPreviousReading() {
+    private fun loadTrackerPreferences() {
         viewModelScope.launch {
-            val currentMoment = LocalDateTime.now()
-            val dateStr = currentMoment.toLocalDate().toString()
-            
-            val prevEntry = entryRepository.getLatestEntryBefore(dateStr).getOrNull()
-            if (prevEntry != null) {
-                _uiState.value = _uiState.value.copy(previousUnit = prevEntry.unit)
-            }
+            val ratePerUnit = settingsRepository.getSettings().getOrNull()?.lkrPerUnit ?: 32.0
+            val currencyCode = dataStoreManager.currencyCode.first()
+            _uiState.value = _uiState.value.copy(
+                ratePerUnit = ratePerUnit,
+                currencyCode = currencyCode
+            )
         }
+    }
+
+    private fun refreshReadingContext() {
+        val state = _uiState.value
+        val date = TrackerDateTimeParser.parseDate(state.dateInput)
+        val time = TrackerDateTimeParser.parseTime(state.timeInput)
+
+        if (date == null || time == null) {
+            _uiState.value = syncUsagePreview(state.copy(previousUnit = 0.0))
+            return
+        }
+
+        viewModelScope.launch {
+            val previousEntry = entryRepository.getLatestEntryBefore(
+                date = date.toString(),
+                time = TrackerDateTimeParser.formatTime(time.hour, time.minute)
+            ).getOrNull()
+
+            _uiState.value = syncUsagePreview(
+                _uiState.value.copy(previousUnit = previousEntry?.unit ?: 0.0)
+            )
+        }
+    }
+
+    private fun syncUsagePreview(state: LogUiState): LogUiState {
+        val currentReading = MeterReadingParser.parse(state.currentUnitInput)
+        val usagePreview = currentReading?.let { (it - state.previousUnit).coerceAtLeast(0.0) }
+        return state.copy(usagePreview = usagePreview)
     }
 
     fun updateUnitInput(input: String) {
-        if (input.length <= 7 && input.all { it.isDigit() }) {
-            _uiState.value = _uiState.value.copy(currentUnitInput = input)
-        }
+        _uiState.value = syncUsagePreview(
+            _uiState.value.copy(
+                currentUnitInput = MeterReadingParser.sanitize(input),
+                error = null
+            )
+        )
+    }
+
+    fun updateDateInput(input: String) {
+        _uiState.value = _uiState.value.copy(
+            dateInput = TrackerDateTimeParser.sanitizeDate(input),
+            error = null
+        )
+        refreshReadingContext()
+    }
+
+    fun updateTimeInput(input: String) {
+        _uiState.value = _uiState.value.copy(
+            timeInput = TrackerDateTimeParser.sanitizeTime(input),
+            error = null
+        )
+        refreshReadingContext()
     }
 
     fun toggleAppliance(appliance: String) {
@@ -66,11 +124,11 @@ class LogViewModel @Inject constructor(
     }
 
     fun updateNote(note: String) {
-        _uiState.value = _uiState.value.copy(note = note)
+        _uiState.value = _uiState.value.copy(note = note, error = null)
     }
 
     fun setPhoto(file: File) {
-        _uiState.value = _uiState.value.copy(photoFile = file)
+        _uiState.value = _uiState.value.copy(photoFile = file, error = null)
     }
 
     fun submitReading() {
@@ -78,30 +136,33 @@ class LogViewModel @Inject constructor(
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
             val state = _uiState.value
-            
-            // Parse 5 digits + 2 decimals from string like "04827" -> 48.27
-            val parsedDouble = if (state.currentUnitInput.length == 7) {
-                val integerPart = state.currentUnitInput.substring(0, 5)
-                val decimalPart = state.currentUnitInput.substring(5, 7)
-                "$integerPart.$decimalPart".toDoubleOrNull()
-            } else {
-                null
-            }
+            val parsedDate = TrackerDateTimeParser.parseDate(state.dateInput)
+            val parsedTime = TrackerDateTimeParser.parseTime(state.timeInput)
 
-            if (parsedDouble == null || parsedDouble < state.previousUnit) {
+            if (parsedDate == null || parsedTime == null) {
                 _uiState.value = state.copy(
                     isLoading = false,
-                    error = "Invalid reading. Must be 7 digits and greater than previous."
+                    error = "Enter a valid date and time for the reading."
                 )
                 return@launch
             }
 
-            val usedAmount = parsedDouble - state.previousUnit
-            val currentMoment = LocalDateTime.now()
-            val timeStr = "${currentMoment.hour.toString().padStart(2, '0')}:${currentMoment.minute.toString().padStart(2, '0')}"
+            val validation = MeterReadingParser.validate(state.currentUnitInput, state.previousUnit)
+            val parsedDouble = validation.reading
+
+            if (parsedDouble == null) {
+                _uiState.value = state.copy(
+                    isLoading = false,
+                    error = validation.errorMessage
+                )
+                return@launch
+            }
+
+            val usedAmount = (parsedDouble - state.previousUnit).coerceAtLeast(0.0)
+            val timeStr = TrackerDateTimeParser.formatTime(parsedTime.hour, parsedTime.minute)
 
             val entry = Entry(
-                date = currentMoment.toLocalDate().toString(),
+                date = parsedDate.toString(),
                 time = timeStr,
                 unit = parsedDouble,
                 used = usedAmount,

@@ -1,238 +1,304 @@
 package com.sathsara.ecbtracker.ui.screens
 
+import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.ExperimentalLayoutApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.navigation.NavController
-import com.sathsara.ecbtracker.R
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import coil.compose.AsyncImage
+import com.sathsara.ecbtracker.logic.MeterReadingParser
+import com.sathsara.ecbtracker.logic.CurrencyFormatter
 import com.sathsara.ecbtracker.ui.components.PrimaryButton
-import com.sathsara.ecbtracker.ui.components.VerticalSpacer
-import com.sathsara.ecbtracker.ui.theme.*
+import com.sathsara.ecbtracker.ui.components.SectionCard
+import com.sathsara.ecbtracker.ui.components.SectionHeading
+import com.sathsara.ecbtracker.ui.components.SecondaryOutlineButton
+import com.sathsara.ecbtracker.ui.components.StatusBanner
+import com.sathsara.ecbtracker.ui.theme.CyanDim
+import com.sathsara.ecbtracker.ui.theme.CyanPrimary
+import com.sathsara.ecbtracker.ui.theme.Muted
 import com.sathsara.ecbtracker.ui.viewmodel.LogViewModel
+import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun LogScreen(
-    navController: NavController,
+    onSaved: () -> Unit,
     viewModel: LogViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val previewReading = MeterReadingParser.parse(uiState.currentUnitInput)
+    val context = LocalContext.current
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        val tempFile = uri?.let { copyUriToCache(context, it) }
+        if (tempFile != null) {
+            viewModel.setPhoto(tempFile)
+        }
+    }
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) {
-            navController.popBackStack()
+            onSaved()
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState()),
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background
     ) {
-        VerticalSpacer(24)
-
-        Text(
-            text = "Log Reading",
-            fontFamily = OutfitFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = 24.sp,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        Text(
-            text = "Enter current meter reading",
-            fontSize = 14.sp,
-            color = TextMuted,
-            modifier = Modifier.padding(bottom = 24.dp)
-        )
-
-        // Previous reading info
-        Row(
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(SurfaceDark, RoundedCornerShape(8.dp))
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text("Previous Reading:", color = TextMuted, fontSize = 14.sp)
-            Text(
-                text = "${uiState.previousUnit}",
-                fontFamily = DMMonoFamily,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
+            SectionHeading(
+                title = "Log a reading",
+                subtitle = "Use the current meter value so the dashboard and history stay accurate."
             )
-        }
 
-        VerticalSpacer(24)
-
-        // Reading Display (Simulating 7-segment/digital meter)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            val inputStr = uiState.currentUnitInput.padStart(7, '0')
-            // Integer parts (5 digits)
-            for (i in 0..4) {
-                DigitBox(digit = inputStr[i].toString(), isDecimal = false)
+            if (uiState.error != null) {
+                StatusBanner(message = uiState.error!!, isError = true)
             }
-            
-            Text(".", fontSize = 36.sp, color = TextMuted, modifier = Modifier.padding(horizontal = 4.dp))
-            
-            // Decimal parts (2 digits)
-            for (i in 5..6) {
-                DigitBox(digit = inputStr[i].toString(), isDecimal = true)
-            }
-        }
 
-        VerticalSpacer(16)
-
-        // ML Kit Camera Scan Button
-        Button(
-            onClick = { /* TODO: Launch ML Kit Camera Scanner */ },
-            colors = ButtonDefaults.buttonColors(containerColor = CyanDim, contentColor = CyanPrimary),
-            modifier = Modifier.fillMaxWidth().height(48.dp),
-            shape = RoundedCornerShape(8.dp)
-        ) {
-            Icon(painterResource(id = R.drawable.ic_camera), contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Scan Meter with ML", fontWeight = FontWeight.SemiBold)
-        }
-
-        VerticalSpacer(32)
-
-        Text(
-            text = "What was running?",
-            fontFamily = OutfitFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        val appliances = listOf("A/C", "Washing Machine", "Iron", "Oven", "Water Heater", "Pump", "Kettle", "Other")
-
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            modifier = Modifier.height(180.dp), // Fixed height to avoid nested scroll issues
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(appliances) { appliance ->
-                val isSelected = uiState.selectedAppliances.contains(appliance)
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .background(
-                            if (isSelected) CyanDim else SurfaceDark,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .border(
-                            1.dp,
-                            if (isSelected) CyanPrimary else Color.Transparent,
-                            RoundedCornerShape(8.dp)
-                        )
-                        .clickable { viewModel.toggleAppliance(appliance) }
-                        .padding(8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
+            SectionCard {
+                Text(
+                    text = "Previous reading",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Muted
+                )
+                Text(
+                    text = String.format("%.2f", uiState.previousUnit),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (uiState.usagePreview != null) {
                     Text(
-                        text = appliance,
-                        fontSize = 11.sp,
-                        textAlign = TextAlign.Center,
-                        color = if (isSelected) CyanPrimary else TextMuted
+                        text = "Planned usage gap: ${String.format("%.2f", uiState.usagePreview)} units",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Muted
                     )
                 }
             }
-        }
 
-        VerticalSpacer(24)
+            SectionCard {
+                SectionHeading(
+                    title = "Reading moment",
+                    subtitle = "You can log older readings like yesterday morning or evening."
+                )
 
-        Text(
-            text = "Notes (Optional)",
-            fontFamily = OutfitFamily,
-            fontWeight = FontWeight.Medium,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+                OutlinedTextField(
+                    value = uiState.dateInput,
+                    onValueChange = viewModel::updateDateInput,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("YYYY-MM-DD") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyanPrimary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
 
-        OutlinedTextField(
-            value = uiState.note,
-            onValueChange = { viewModel.updateNote(it) },
-            placeholder = { Text("Add any specifics...", color = TextMuted) },
-            modifier = Modifier.fillMaxWidth().height(100.dp),
-            shape = RoundedCornerShape(8.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                focusedBorderColor = CyanPrimary,
-                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
+                OutlinedTextField(
+                    value = uiState.timeInput,
+                    onValueChange = viewModel::updateTimeInput,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("HH:mm") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyanPrimary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+
+                Text(
+                    text = "The app blocks duplicate entries for the same date and time on the shared account.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted
+                )
+            }
+
+            SectionCard {
+                SectionHeading(
+                    title = "Current meter value",
+                    subtitle = "Enter 7 digits. The last two digits are treated as decimals."
+                )
+
+                OutlinedTextField(
+                    value = uiState.currentUnitInput,
+                    onValueChange = viewModel::updateUnitInput,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Example: 1234567") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyanPrimary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+
+                Text(
+                    text = if (previewReading == null) {
+                        "Preview will appear when all 7 digits are entered."
+                    } else {
+                        "Parsed reading: ${String.format("%.2f", previewReading)}"
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Muted
+                )
+
+                if (uiState.usagePreview != null) {
+                    Text(
+                        text = "Estimated cost for this gap: ${
+                            CurrencyFormatter.format(
+                                uiState.currencyCode,
+                                uiState.usagePreview * uiState.ratePerUnit
+                            )
+                        }",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Muted
+                    )
+                }
+            }
+
+            SectionCard {
+                SectionHeading(
+                    title = "What was running?",
+                    subtitle = "Optional context to help you spot patterns later."
+                )
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    listOf(
+                        "A/C",
+                        "Washing Machine",
+                        "Iron",
+                        "Oven",
+                        "Water Heater",
+                        "Pump",
+                        "Kettle",
+                        "Other"
+                    ).forEach { appliance ->
+                        val isSelected = appliance in uiState.selectedAppliances
+                        Text(
+                            text = appliance,
+                            modifier = Modifier
+                                .background(
+                                    if (isSelected) CyanDim else MaterialTheme.colorScheme.surfaceVariant,
+                                    RoundedCornerShape(999.dp)
+                                )
+                                .clickable { viewModel.toggleAppliance(appliance) }
+                                .padding(horizontal = 14.dp, vertical = 10.dp),
+                            color = if (isSelected) CyanPrimary else MaterialTheme.colorScheme.onBackground,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+
+            SectionCard {
+                SectionHeading(
+                    title = "Meter proof image",
+                    subtitle = "Attach a meter photo when you want image proof saved to Supabase storage."
+                )
+
+                SecondaryOutlineButton(
+                    text = if (uiState.photoFile == null) "Attach meter photo" else "Replace meter photo",
+                    onClick = { photoPicker.launch("image/*") }
+                )
+
+                if (uiState.photoFile != null) {
+                    AsyncImage(
+                        model = uiState.photoFile,
+                        contentDescription = "Attached meter proof",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                    )
+                    Text(
+                        text = uiState.photoFile.name,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Muted
+                    )
+                }
+            }
+
+            SectionCard {
+                SectionHeading(
+                    title = "Notes",
+                    subtitle = "Optional comments about unusual usage, outages, or appliances."
+                )
+
+                OutlinedTextField(
+                    value = uiState.note,
+                    onValueChange = viewModel::updateNote,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Add anything worth remembering") },
+                    minLines = 4,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = CyanPrimary,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant
+                    )
+                )
+            }
+
+            PrimaryButton(
+                text = if (uiState.isLoading) "Saving..." else "Save reading",
+                onClick = viewModel::submitReading,
+                enabled = !uiState.isLoading && uiState.currentUnitInput.isNotBlank()
             )
-        )
-
-        if (uiState.error != null) {
-            Text(
-                text = uiState.error!!,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 8.dp)
-            )
         }
-
-        VerticalSpacer(32)
-
-        PrimaryButton(
-            text = if (uiState.isLoading) "Saving..." else "Save Reading",
-            onClick = { viewModel.submitReading() },
-            enabled = !uiState.isLoading
-        )
-
-        VerticalSpacer(80) // Navigation bar padding
     }
 }
 
-@Composable
-fun DigitBox(digit: String, isDecimal: Boolean) {
-    Box(
-        modifier = Modifier
-            .padding(2.dp)
-            .width(if (isDecimal) 34.dp else 40.dp)
-            .height(if (isDecimal) 50.dp else 60.dp)
-            .background(if (isDecimal) Color(0xFF1E293B) else Color.Black, RoundedCornerShape(4.dp))
-            .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(4.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        // RedDanger color for decimals matching standard analog meters
-        val textColor = if (isDecimal) RedDanger else MaterialTheme.colorScheme.onBackground
-        
-        Text(
-            text = digit,
-            fontFamily = DMMonoFamily,
-            fontWeight = FontWeight.Bold,
-            fontSize = if (isDecimal) 24.sp else 32.sp,
-            color = textColor
-        )
+private fun copyUriToCache(context: Context, uri: Uri): File? {
+    val inputStream = context.contentResolver.openInputStream(uri) ?: return null
+    val targetFile = File(context.cacheDir, "meter_${System.currentTimeMillis()}.jpg")
+    inputStream.use { input ->
+        targetFile.outputStream().use { output ->
+            input.copyTo(output)
+        }
     }
+    return targetFile
 }

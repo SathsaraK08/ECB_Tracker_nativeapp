@@ -2,33 +2,47 @@ package com.sathsara.ecbtracker.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sathsara.ecbtracker.data.DataStoreManager
 import com.sathsara.ecbtracker.data.model.Entry
-import com.sathsara.ecbtracker.data.repository.EntryRepository
-import com.sathsara.ecbtracker.data.repository.SettingsRepository
+import com.sathsara.ecbtracker.data.model.ForecastTip
+import com.sathsara.ecbtracker.data.repository.EntryRepositoryContract
+import com.sathsara.ecbtracker.data.repository.ForecastRepository
+import com.sathsara.ecbtracker.data.repository.SettingsRepositoryContract
+import com.sathsara.ecbtracker.logic.DashboardMetricsCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
 
 data class HomeUiState(
     val isLoading: Boolean = true,
     val username: String = "User",
+    val accountNumber: String = "",
     val monthlyKwh: Double = 0.0,
-    val estimatedBill: Double = 0.0,
     val todayKwh: Double = 0.0,
+    val weeklyKwh: Double = 0.0,
+    val averageDailyKwh: Double = 0.0,
+    val currentBill: Double = 0.0,
+    val projectedBill: Double = 0.0,
     val ratePerUnit: Double = 32.0,
+    val currencyCode: String = "LKR",
+    val peakHours: String = "",
+    val forecastTips: List<ForecastTip> = emptyList(),
     val chartData: List<Pair<String, Float>> = emptyList(),
-    val recentActivity: List<Entry> = emptyList()
+    val recentActivity: List<Entry> = emptyList(),
+    val error: String? = null
 )
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val entryRepository: EntryRepository,
-    private val settingsRepository: SettingsRepository
+    private val entryRepository: EntryRepositoryContract,
+    private val settingsRepository: SettingsRepositoryContract,
+    private val dataStoreManager: DataStoreManager,
+    private val forecastRepository: ForecastRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -38,48 +52,47 @@ class HomeViewModel @Inject constructor(
         loadDashboardData()
     }
 
-        fun loadDashboardData() {
+    fun loadDashboardData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
             // Get current user profile and settings
             val profile = settingsRepository.getProfile().getOrNull()
             val settings = settingsRepository.getSettings().getOrNull()
-            
-            val username = profile?.username?.takeIf { it.isNotBlank() } ?: "User"
-            val rate = settings?.lkrPerUnit ?: 32.0
-            
-            // Generate current month string e.g. "2023-10"
+            val currencyCode = dataStoreManager.currencyCode.first()
+
             val currentMoment = LocalDateTime.now()
             val monthStr = currentMoment.monthValue.toString().padStart(2, '0')
             val yearMonth = "${currentMoment.year}-$monthStr"
-            val todayStr = currentMoment.toLocalDate().toString()
 
-            // Fetch entries
             val monthEntries = entryRepository.getEntriesForMonth(yearMonth).getOrNull() ?: emptyList()
             val recentEntries = entryRepository.getRecentEntries(3).getOrNull() ?: emptyList()
-            
-            // Calculate totals
-            val monthlyKwh = monthEntries.sumOf { it.used }
-            val todayKwh = monthEntries.filter { it.date == todayStr }.sumOf { it.used }
-            
-            // Generate chart data (last 7 days)
-            val last7DaysMap = monthEntries
-                .sortedByDescending { it.date }
-                .take(7)
-                .groupBy { it.date }
-                .mapValues { (_, entries) -> entries.sumOf { it.used }.toFloat() }
-                
-            val chartData = last7DaysMap.entries.map { Pair(it.key, it.value) }.take(7)
+            val metrics = DashboardMetricsCalculator.build(
+                username = profile?.username,
+                settings = settings,
+                monthEntries = monthEntries,
+                today = currentMoment.toLocalDate()
+            )
+            val forecast = forecastRepository.getMonthlyForecast(
+                yearMonth = yearMonth,
+                today = currentMoment.toLocalDate()
+            ).getOrNull()
 
             _uiState.value = HomeUiState(
                 isLoading = false,
-                username = username,
-                monthlyKwh = monthlyKwh,
-                estimatedBill = monthlyKwh * rate,
-                todayKwh = todayKwh,
-                ratePerUnit = rate,
-                chartData = chartData,
+                username = metrics.username,
+                accountNumber = metrics.accountNumber,
+                monthlyKwh = metrics.monthlyKwh,
+                todayKwh = metrics.todayKwh,
+                weeklyKwh = metrics.weeklyKwh,
+                averageDailyKwh = metrics.averageDailyKwh,
+                currentBill = metrics.currentBill,
+                projectedBill = forecast?.projectedBill ?: metrics.projectedBill,
+                ratePerUnit = metrics.ratePerUnit,
+                currencyCode = currencyCode,
+                peakHours = forecast?.peakHours.orEmpty(),
+                forecastTips = forecast?.tips.orEmpty(),
+                chartData = metrics.chartData,
                 recentActivity = recentEntries
             )
         }

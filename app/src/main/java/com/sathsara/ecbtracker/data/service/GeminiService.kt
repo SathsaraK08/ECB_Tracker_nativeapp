@@ -30,14 +30,21 @@ class GeminiService @Inject constructor() {
         }
     }
 
-    private val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${BuildConfig.GEMINI_API_KEY}"
-
-    suspend fun getForecast(entriesJson: String, lkrPerUnit: Double): Result<ForecastResponse> = withContext(Dispatchers.IO) {
+    suspend fun getForecast(
+        entriesJson: String,
+        lkrPerUnit: Double,
+        currencyCode: String,
+        apiKey: String
+    ): Result<ForecastResponse> = withContext(Dispatchers.IO) {
         Result.runCatching {
+            val resolvedApiKey = apiKey.ifBlank { BuildConfig.GEMINI_API_KEY }
+            require(resolvedApiKey.isNotBlank()) { "Gemini API key is missing." }
+
             val prompt = """
                 You are an energy analyst. The user has logged the following electricity 
                 readings this month in Sri Lanka (CEB utility): $entriesJson.
-                Their rate is LKR $lkrPerUnit per kWh. 
+                Their rate is $currencyCode $lkrPerUnit per kWh. 
+                Focus on identifying which appliances or time windows likely drive higher usage and how to reduce them.
                 Respond ONLY in JSON with this structure:
                 {
                   "projected_bill": number,
@@ -60,6 +67,7 @@ class GeminiService @Inject constructor() {
                 )
             )
 
+            val apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=$resolvedApiKey"
             val response: GeminiResponse = client.post(apiUrl) {
                 contentType(ContentType.Application.Json)
                 setBody(requestBody)
