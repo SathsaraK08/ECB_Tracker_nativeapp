@@ -40,7 +40,7 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure {
                     _uiState.value = LoginUiState(
-                        error = it.message ?: "Sign in failed",
+                        error = it.toFriendlyMessage("Sign in failed"),
                         isConfigured = true
                     )
                 }
@@ -69,7 +69,7 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure {
                     _uiState.value = LoginUiState(
-                        error = it.message ?: "Sign up failed",
+                        error = it.toFriendlyMessage("Sign up failed"),
                         isConfigured = true
                     )
                 }
@@ -98,7 +98,7 @@ class LoginViewModel @Inject constructor(
                 }
                 .onFailure {
                     _uiState.value = LoginUiState(
-                        error = it.message ?: "Failed to send password reset email",
+                        error = it.toFriendlyMessage("Failed to send password reset email"),
                         isConfigured = true
                     )
                 }
@@ -109,10 +109,20 @@ class LoginViewModel @Inject constructor(
         val configured = authRepository.isConfigured()
         if (!configured) {
             _uiState.value = LoginUiState(
-                error = "Supabase configuration is missing. Add SUPABASE_URL and SUPABASE_ANON_KEY before continuing.",
+                error = "Supabase configuration is missing or invalid. Add a valid https SUPABASE_URL and SUPABASE_ANON_KEY before continuing.",
                 isConfigured = false
             )
         }
         return configured
+    }
+}
+
+
+private fun Throwable.toFriendlyMessage(fallback: String): String {
+    val message = this.message.orEmpty()
+    return if (message.contains("Cannot resolve Supabase host")) {
+        message
+    } else {
+        message.ifBlank { fallback }
     }
 }

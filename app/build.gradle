@@ -113,3 +113,12 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-tooling'
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 }
+
+
+android.applicationVariants.configureEach { variant ->
+    if (variant.buildType.name == "debug") {
+        variant.outputs.configureEach { output ->
+            output.outputFileName = "ECB_Tracker_v${variant.versionName}.apk"
+        }
+    }
+}

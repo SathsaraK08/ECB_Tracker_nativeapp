@@ -4,12 +4,12 @@ import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.ExperimentalLayoutApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -28,7 +29,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -184,12 +184,12 @@ fun LogScreen(
                     color = Muted
                 )
 
-                if (uiState.usagePreview != null) {
+                uiState.usagePreview?.let { usagePreview ->
                     Text(
                         text = "Estimated cost for this gap: ${
                             CurrencyFormatter.format(
                                 uiState.currencyCode,
-                                uiState.usagePreview * uiState.ratePerUnit
+                                usagePreview * uiState.ratePerUnit
                             )
                         }",
                         style = MaterialTheme.typography.bodySmall,
@@ -246,16 +246,16 @@ fun LogScreen(
                     onClick = { photoPicker.launch("image/*") }
                 )
 
-                if (uiState.photoFile != null) {
+                uiState.photoFile?.let { photoFile ->
                     AsyncImage(
-                        model = uiState.photoFile,
+                        model = photoFile,
                         contentDescription = "Attached meter proof",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(180.dp)
                     )
                     Text(
-                        text = uiState.photoFile.name,
+                        text = photoFile.name,
                         style = MaterialTheme.typography.bodySmall,
                         color = Muted
                     )

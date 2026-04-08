@@ -14,7 +14,9 @@ class MeterReadingParserTest {
 
     @Test
     fun parse_returns_reading_when_input_has_seven_digits() {
-        assertEquals(12345.67, MeterReadingParser.parse("1234567"), 0.0001)
+        val parsed = MeterReadingParser.parse("1234567")
+        assertNotNull(parsed)
+        assertEquals(12345.67, parsed!!, 0.0001)
     }
 
     @Test

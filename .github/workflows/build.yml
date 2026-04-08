@@ -37,7 +37,7 @@ jobs:
 
       - name: Create local.properties for CI
         run: |
-          echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+          echo "sdk.dir=${ANDROID_SDK_ROOT:-$ANDROID_HOME}" > local.properties
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
@@ -53,9 +53,6 @@ jobs:
           echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> gradle.properties
           echo "SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}" >> gradle.properties
           echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> gradle.properties
-
-      - name: Set up Android SDK path
-        run: echo "sdk.dir=$ANDROID_HOME" >> local.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -85,5 +82,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ECBTracker-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
