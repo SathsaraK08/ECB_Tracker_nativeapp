@@ -49,9 +49,10 @@ jobs:
             echo "Tests failed, pushing log to repo"
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b ci-logs-branch
             git add gradle-test.log
             git commit -m "ci: save gradle test log [skip ci]"
-            git push origin HEAD:main
+            git push -u origin ci-logs-branch --force
             exit 1
           }
 
