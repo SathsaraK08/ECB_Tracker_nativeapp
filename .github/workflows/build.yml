@@ -3,13 +3,15 @@ name: Build ECB Tracker APK
 on:
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout code
@@ -22,6 +24,20 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK packages
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
+
+      - name: Create local.properties for CI
+        run: |
+          echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
 
       - name: Cache Gradle packages
         uses: actions/cache@v4
