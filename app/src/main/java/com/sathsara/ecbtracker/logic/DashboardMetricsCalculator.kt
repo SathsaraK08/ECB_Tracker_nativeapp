@@ -41,6 +41,7 @@ object DashboardMetricsCalculator {
             .groupBy { it.date }
             .toSortedMap()
             .entries
+            .toList()
             .takeLast(7)
             .map { (date, entries) -> date.takeLast(2) to entries.sumOf { it.used }.toFloat() }
         val currentBill = monthlyKwh * rate

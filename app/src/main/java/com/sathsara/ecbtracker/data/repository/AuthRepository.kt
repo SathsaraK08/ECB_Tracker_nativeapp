@@ -28,11 +28,12 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    override suspend fun signUp(email: String, password: String) = Result.runCatching {
+    override suspend fun signUp(email: String, password: String): Result<Unit> = Result.runCatching {
         supabase.auth.signUpWith(Email) {
             this.email = email
             this.password = password
         }
+        Unit
     }
 
     override suspend fun signOut() = Result.runCatching {
@@ -43,10 +44,11 @@ class AuthRepository @Inject constructor(
         supabase.auth.resetPasswordForEmail(email)
     }
 
-    override suspend fun updatePassword(newPassword: String) = Result.runCatching {
+    override suspend fun updatePassword(newPassword: String): Result<Unit> = Result.runCatching {
         supabase.auth.updateUser {
             password = newPassword
         }
+        Unit
     }
 
     override fun getCurrentUserId(): String? {
